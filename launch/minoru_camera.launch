@@ -1,41 +1,153 @@
 <launch>
+	<!-- set left/right camera device -->
+	<arg name="right_camera_dev"	value="/dev/video1" />
+	<arg name="left_camera_dev"		value="/dev/video2" />
 
+	<!-- set Image Size -->
+	<arg name="image_width"		value="320" />
+	<arg name="image_height"	value="240" />
+
+
+	<arg name="rviz" default="true"/> <arg name="rtabmapviz" default="false"/>
+
+	<!-- Rotate the camera frame. -->
 	<arg name="pi/2" value="1.5707963267948966" />
-<!-- -$(arg pi/2) -->
-	<arg name="camera_rotate" value="0 0 0 0 0 -$(arg pi/2)" />
+	<arg name="camdist" value ="0.1397" />
+	<arg name="optical_rotate" value="0 0 0.5 0 0 -$(arg pi/2)" />
+	<node pkg="tf" type="static_transform_publisher" name="camera_base_link"
+		args="$(arg optical_rotate) base_link head_left_camera 100" /> 
 
-<!-- static_transform_publisher x y z yaw pitch roll frame_id child_frame_id period_in_ms -->
-	<node pkg="tf" type="static_transform_publisher" name="world_to_camera" output="screen" args="$(arg camera_rotate) world head_left_camera 10" />
 
 	<group ns="stereo_camera">
-		<node name="right" pkg="usb_cam" type="usb_cam_node" output="screen" >
-			<param name="video_device" value="/dev/video1" />
-			<param name="image_width" value="320" />
-			<param name="image_height" value="240" />
-			<param name="pixel_format" value="yuyv" />
-			<param name="camera_frame_id" value="head_right_camera" />
-			<param name="io_method" value="mmap"/>
-			<param name="camera_info_url" type="string" value="file://$(find minoru_camera)/data/camera_param/right_camera.yaml" />
-		</node>
+		<node pkg="nodelet" type="nodelet" name="stereo_nodelet"  args="manager"/>
+			<node name="right" pkg="usb_cam" type="usb_cam_node" output="screen" >
+				<param name="video_device"		value="$(arg right_camera_dev)" />
+				<param name="image_width"		value="$(arg image_width)" />
+				<param name="image_height"		value="$(arg image_height)" />
+				<param name="pixel_format"		value="yuyv" />
+				<param name="camera_frame_id"	value="head_right_camera" />
+				<param name="io_method"			value="mmap"/>
+				<param name="camera_info_url" type="string" value="file://$(find minoru_camera)/data/camera_param/right_camera.yaml" />
+				<param name="camera_name"		value="head_right_camera"/>
+				<param name="autofocus"			value="false"/>
+			</node>
 
-		<node name="left" pkg="usb_cam" type="usb_cam_node" output="screen" >
-			<param name="video_device" value="/dev/video2" />
-			<param name="image_width" value="320" />
-			<param name="image_height" value="240" />
-			<param name="pixel_format" value="yuyv" />
-			<param name="camera_frame_id" value="head_left_camera" />
-			<param name="io_method" value="mmap"/>
-			<param name="camera_info_url" type="string" value="file://$(find minoru_camera)/data/camera_param/left_camera.yaml" />
-		</node>
+			<node name="left" pkg="usb_cam" type="usb_cam_node" output="screen" >
+				<param name="video_device"		value="$(arg left_camera_dev)" />
+				<param name="image_width"		value="$(arg image_width)" />
+				<param name="image_height"		value="$(arg image_height)" />
+				<param name="pixel_format"		value="yuyv" />
+				<param name="camera_frame_id"	value="head_left_camera" />
+				<param name="io_method"			value="mmap"/>
+				<param name="camera_info_url" type="string" value="file://$(find minoru_camera)/data/camera_param/left_camera.yaml" />
+				<param name="camera_name"		value="head_left_camera"/>
+				<param name="autofocus"			value="false"/>
+			</node>
 
-		<node name="stereo_image_proc" pkg="stereo_image_proc" type="stereo_image_proc" args="_approximate_sync:=True" output="screen" />
+			<!-- Run the ROS package stereo_image_proc for image rectification -->
+			<node name="stereo_image_proc" pkg="stereo_image_proc" type="stereo_image_proc" args="_approximate_sync:=True" output="screen" />
+
+			<!-- Visual Odometry -->
+			<node pkg="rtabmap_ros" type="stereo_odometry" name="stereo_odometry" output="screen">
+				<remap from="left/image_rect"	to="left/image_rect"/>
+				<remap from="right/image_rect"	to="right/image_rect"/>
+				<remap from="left/camera_info"	to="left/camera_info"/>
+				<remap from="right/camera_info"	to="right/camera_info"/>
+				<remap from="odom"				to="odom"/>
+
+				<param name="frame_id"				type="string"	value="base_link"/>
+				<param name="odom_frame_id" 		type="string"	value="odom"/>
+
+				<param name="queue_size"			type="int"		value="100"/>
+				<param name="approx_sync"			type="bool"		value="true"/>
+
+				<param name="Odom/InlierDistance"	type="string"	value="0.1"/>
+				<param name="Odom/MinInliers"		type="string"	value="10"/>
+				<param name="Odom/RoiRatios"		type="string"	value="0.03 0.03 0.04 0.04"/>
+				<param name="Odom/MaxDepth"			type="string"	value="10"/>
+				<!-- <param name="GFTT/MaxCorners"		type="string"	value="500"/> -->
+				<param name="GFTT/MinDistance"		type="string"	value="5"/>
+				<param name="Odom/FillInfoData"		type="string"	value="$(arg rtabmapviz)"/>
+			</node> 
 	</group>
 
-	<node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure" output="screen"/>
+	<group ns="rtabmap">
+		<!-- Visualisation RTAB-Map -->
+		<node pkg="rtabmap_ros" type="rtabmap" name="rtabmap" output="screen" args="--delete_db_on_start --udebug">
+			<remap from="left/image_rect"	to="/stereo_camera/left/image_rect_color"/>
+			<remap from="right/image_rect"	to="/stereo_camera/right/image_rect_color"/>
+			<remap from="left/camera_info"	to="/stereo_camera/left/camera_info"/>
+			<remap from="right/camera_info"	to="/stereo_camera/right/camera_info"/>
+			<remap from="odom"				to="/stereo_camera/odom"/>
+
+			<param name="queue_size"			type="int"		value="100"/>
+			<param name="approximate_sync"		type="bool"		value="true"/>
+			<param name="approx_sync"			type="bool"		value="true"/>
+			<!-- <param -->
+			<param name="stereo_approx_sync"	type="bool"		value="true"/>
+			<!-- RTAB-Map's parameters -->
+			<param name="Rtabmap/TimeThr"		type="string"	value="700"/>
+			<param name="Rtabmap/DetectionRate"	type="string"	value="1"/>
+
+			<param name="Kp/WordsPerImage"		type="string"	value="200"/>
+			<param name="Kp/RoiRatios"			type="string"	value="0.03 0.03 0.04 0.04"/>
+			<param name="Kp/DetectorStrategy"	type="string"	value="0"/>	<!-- use SURF -->
+			<param name="Kp/NNStrategy"			type="string"	value="1"/>	<!-- kdTree -->
+
+			<param name="SURF/HessianThreshold"	type="string"	value="1000"/>
+
+			<param name="LccBow/MinInliers"		type="string"	value="10"/>
+			<param name="LccBow/InlierDistance"	type="string"	value="0.02"/>
+
+			<param name="LccReextract/MaxDepth"		type="string"	value="5"/>
+			<param name="LccReextract/Activated"	type="string"	value="true"/>
+			<param name="LccReextract/MaxWords"		type="string"	value="500"/>
+
+			<!-- Disable graph optimization because we use map_optimizer node below -->
+			<!-- <param name="RGBD/ToroIterations" type="string" value="0"/>  -->
+			<param name="RGBD/OptimizeIterations"	type="string"	value="0"/> 
+		</node>
+
+		<!-- Optimizing outside rtabmap node makes it able to optimize always the global map -->
+		<node pkg="rtabmap_ros" type="map_optimizer" name="map_optimizer">
+			<param name="approximate_sync"		type="bool"	value="true"/>
+			<param name="approx_sync"			type="bool"	value="true"/>
+			<param name="queue_size"			type="int"	value="100"/>
+			<!-- <param -->
+			<param name="stereo_approx_sync"	type="bool"	value="true"/>
+		</node>
+
+		<node if="$(arg rviz)" pkg="rtabmap_ros" type="map_assembler" name="map_assembler">
+			<remap from="mapData"				to="/rtabmap/mapData_optimized"/>
+			<remap from="grid_projection_map"	to="/rtabmap/map"/>
+
+			<param name="occupancy_grid"		type="bool"	value="true"/>
+			<param name="approximate_sync"		type="bool"	value="true"/>
+			<param name="approx_sync"			type="bool"	value="true"/>
+			<param name="stereo_approx_sync"	type="bool" value="true"/>
+			<param name="queue_size"			type="int"	value="100"/>
+		</node>
+
+		<!-- Visualisation RTAB-Map -->
+		<node if="$(arg rtabmapviz)" pkg="rtabmap_ros" type="rtabmapviz" name="rtabmapviz" args="-d $(find rtabmap_ros)/launch/config/rgbd_gui.ini" output="screen">
+			<param name="subscribe_stereo"		type="bool"		value="true"/>
+			<param name="subscribe_odom_info"	type="bool"		value="true"/>
+			<param name="queue_size"			type="int"		value="10"/>
+			<param name="frame_id"				type="string"	value="base_link"/>
+
+			<remap from="left/image_rect"	to="/stereo_camera/left/image_rect_color"/>
+			<remap from="right/image_rect"	to="/stereo_camera/right/image_rect_color"/>
+			<remap from="left/camera_info"	to="/stereo_camera/left/camera_info"/>
+			<remap from="right/camera_info"	to="/stereo_camera/right/camera_info"/>
+			<remap from="odom_info"			to="/odom_info"/>
+			<remap from="odom"				to="/odometry"/>
+			<remap from="mapData"			to="mapData_optimized"/>
+		</node>
+	</group>
+
+<!--	<node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure" output="screen"/>	-->
 
 	<node pkg="rviz" type="rviz" name="rviz" args="-d $(find minoru_camera)/config/stereo.rviz" />
 
 </launch>
-
-<!-- publish all the frames to TF -->
 

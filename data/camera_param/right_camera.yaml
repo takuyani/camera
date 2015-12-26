@@ -1,6 +1,6 @@
 image_width: 320
 image_height: 240
-camera_name: head_camera
+camera_name: head_right_camera
 camera_matrix:
   rows: 3
   cols: 3
