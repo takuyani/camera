@@ -1,0 +1,30 @@
+<launch>
+
+	<arg name="isImageView"		default="true"/>
+	<arg name="isRViz"			default="true"/>
+	<arg name="isRqtReconfig"	default="false"/>
+
+	<param name="use_sim_time" value="false"/>
+
+	<!-- Rotate the camera frame.(x y z yaw pitch roll) -->
+	<arg name="pi/2" value="1.5707963267948966" />
+	<arg name="optical_rotate" value="0 0 0.5 -$(arg pi/2) 0 -$(arg pi/2)" />
+	<node name="camera_base_link" pkg="tf" type="static_transform_publisher"
+		args="$(arg optical_rotate) base_link head_left_camera 100" /> 
+
+	<group ns="stereo_camera">
+
+	    <include file="$(find minoru_camera)/launch/camera/minoru_camera.launch" />
+
+		<node name="stereo_nodelet" pkg="nodelet" type="nodelet" args="manager" />
+		<!-- Run the ROS package stereo_image_proc for image rectification -->
+		<node name="stereo_image_proc" pkg="stereo_image_proc" type="stereo_image_proc"
+			args="_approximate_sync:=True" output="screen" />
+	</group>
+
+	<node if="$(arg isImageView)"	name="stereo_camera" pkg="image_view" type="stereo_view" args="stereo:=/stereo_camera image:=image_rect_color _approximate_sync:=True" />	
+	<node if="$(arg isRViz)"		name="rviz" pkg="rviz" type="rviz" args="-d $(find minoru_camera)/config/minoru_camera.rviz" />
+	<node if="$(arg isRqtReconfig)"	name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure" output="screen"/>
+
+</launch>
+

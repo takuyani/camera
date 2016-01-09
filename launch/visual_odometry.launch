@@ -1,0 +1,108 @@
+<launch>
+
+	<arg name="isRViz"			default="true"/>
+	<arg name="isRqtReconfig"	default="false"/>
+
+
+	<!-- Rotate the camera frame.(x y z yaw pitch roll) -->
+	<arg name="pi/2" value="1.5707963267948966" />
+	<arg name="optical_rotate" value="0 0 0.5 -$(arg pi/2) 0 -$(arg pi/2)" />
+	<node name="camera_base_link" pkg="tf" type="static_transform_publisher"
+		args="$(arg optical_rotate) base_link head_left_camera 100" /> 
+
+
+	<group ns="stereo_camera">
+
+		<node name="stereo_nodelet" pkg="nodelet" type="nodelet" args="manager"/>
+
+		<!-- Run the stereo camera -->
+	    <include file="$(find minoru_camera)/launch/camera/minoru_camera.launch" />
+
+		<!-- Run the ROS package stereo_image_proc for image rectification -->
+		<node name="stereo_image_proc" pkg="stereo_image_proc" type="stereo_image_proc" args="_approximate_sync:=True" output="screen" />
+
+		<!-- Visual Odometry -->
+		<node name="stereo_odometry" pkg="rtabmap_ros" type="stereo_odometry" output="screen">
+			<remap from="left/image_rect"	to="left/image_rect"/>
+			<remap from="right/image_rect"	to="right/image_rect"/>
+			<remap from="left/camera_info"	to="left/camera_info"/>
+			<remap from="right/camera_info"	to="right/camera_info"/>
+			<remap from="odom"				to="odom"/>
+
+			<param name="frame_id"				type="string"	value="base_link"/>
+			<param name="odom_frame_id" 		type="string"	value="odom"/>
+
+			<param name="queue_size"			type="int"		value="100"/>
+			<param name="approx_sync"			type="bool"		value="true"/>
+
+			<param name="Odom/InlierDistance"	type="string"	value="0.1"/>
+			<param name="Odom/MinInliers"		type="string"	value="10"/>
+			<param name="Odom/RoiRatios"		type="string"	value="0.03 0.03 0.04 0.04"/>
+			<param name="Odom/MaxDepth"			type="string"	value="10"/>
+			<!-- <param name="GFTT/MaxCorners"		type="string"	value="500"/> -->
+			<param name="GFTT/MinDistance"		type="string"	value="5"/>
+			<param name="Odom/FillInfoData"		type="string"	value="false"/>
+		</node> 
+	</group>
+
+	<group ns="rtabmap">
+		<!-- Visual SLAM: args: "delete_db_on_start" and "udebug" -->
+		<node name="rtabmap" pkg="rtabmap_ros" type="rtabmap" output="screen" args="--delete_db_on_start">
+			<remap from="left/image_rect"	to="/stereo_camera/left/image_rect_color"/>
+			<remap from="right/image_rect"	to="/stereo_camera/right/image_rect_color"/>
+			<remap from="left/camera_info"	to="/stereo_camera/left/camera_info"/>
+			<remap from="right/camera_info"	to="/stereo_camera/right/camera_info"/>
+			<remap from="odom"				to="/stereo_camera/odom"/>
+
+			<param name="subscribe_stereo"	type="bool"	value="true"/>
+			<param name="subscribe_depth"	type="bool"	value="false"/>
+			<param name="queue_size"		type="int"	value="30"/>
+
+			<!-- RTAB-Map's parameters -->
+			<param name="Rtabmap/TimeThr"	type="string" value="700"/>
+			<param name="Rtabmap/DetectionRate" type="string" value="1"/>
+
+			<param name="Kp/WordsPerImage" type="string" value="200"/>
+			<param name="Kp/RoiRatios" type="string" value="0.03 0.03 0.04 0.04"/>
+			<param name="Kp/DetectorStrategy" type="string" value="0"/>   <!-- use SURF -->
+			<param name="Kp/NNStrategy" type="string" value="1"/>         <!-- kdTree -->
+
+			<param name="SURF/HessianThreshold" type="string" value="1000"/>
+
+			<param name="LccBow/MinInliers" type="string" value="10"/>
+			<param name="LccBow/EstimationType" type="string" value="1"/> <!-- 3D->2D (PnP) -->
+
+			<param name="LccReextract/Activated" type="string" value="true"/>
+			<param name="LccReextract/MaxWords" type="string" value="500"/>
+			<param name="LccReextract/MaxDepth" type="string" value="10"/> 
+		</node>
+
+		<!-- Optimizing outside rtabmap node makes it able to optimize always the global map -->
+		<node name="map_optimizer" pkg="rtabmap_ros" type="map_optimizer">
+			<param name="approximate_sync"		type="bool"	value="true"/>
+			<param name="approx_sync"			type="bool"	value="true"/>
+			<param name="queue_size"			type="int"	value="100"/>
+			<!-- <param -->
+			<param name="stereo_approx_sync"	type="bool"	value="true"/>
+		</node>
+
+		<node if="$(arg isRViz)" name="map_assembler" pkg="rtabmap_ros" type="map_assembler">
+			<remap from="mapData"				to="/rtabmap/mapData_optimized"/>
+			<remap from="grid_projection_map"	to="/rtabmap/map"/>
+
+			<param name="occupancy_grid"		type="bool"	value="true"/>
+			<param name="approximate_sync"		type="bool"	value="true"/>
+			<param name="approx_sync"			type="bool"	value="true"/>
+			<param name="stereo_approx_sync"	type="bool" value="true"/>
+			<param name="queue_size"			type="int"	value="100"/>
+		</node>
+	</group>
+
+	<node if="$(arg isRqtReconfig)" name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure" output="screen"/>
+
+	<!-- Visualisation RVIZ -->
+	<node if="$(arg isRViz)" name="rviz" pkg="rviz" type="rviz" args="-d $(find minoru_camera)/config/visual_odometry.rviz" />
+	<node name="points_xyzrgb" pkg="nodelet" type="nodelet" args="standalone rtabmap_ros/point_cloud_xyzrgb"/>
+
+</launch>
+
