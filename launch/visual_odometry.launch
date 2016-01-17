@@ -62,6 +62,8 @@
 			<param name="stereo_approx_sync"	type="bool"		value="true"/>
 
 			<!-- RTAB-Map's parameters -->
+			<param name="Mem/IncrementalMemory"	type="string"	value="true"/> <!-- true = Mapping/SLAM mode, false = Localization mode-->
+
 			<param name="Rtabmap/TimeThr"		type="string"	value="700"/>
 			<param name="Rtabmap/DetectionRate"	type="string"	value="1"/>
 
