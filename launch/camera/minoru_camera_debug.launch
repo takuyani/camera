@@ -14,7 +14,7 @@
 
 	<group ns="stereo_camera">
 
-	    <include file="$(find minoru_camera)/launch/camera/minoru_camera.launch" />
+	    <include file="$(find camera)/launch/camera/minoru_camera.launch" />
 
 		<node name="stereo_nodelet" pkg="nodelet" type="nodelet" args="manager" />
 		<!-- Run the ROS package stereo_image_proc for image rectification -->
@@ -23,7 +23,7 @@
 	</group>
 
 	<node if="$(arg isImageView)"	name="stereo_camera" pkg="image_view" type="stereo_view" args="stereo:=/stereo_camera image:=image_rect_color _approximate_sync:=True" />	
-	<node if="$(arg isRViz)"		name="rviz" pkg="rviz" type="rviz" args="-d $(find minoru_camera)/config/minoru_camera.rviz" />
+	<node if="$(arg isRViz)"		name="rviz" pkg="rviz" type="rviz" args="-d $(find camera)/config/minoru_camera.rviz" />
 	<node if="$(arg isRqtReconfig)"	name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure" output="screen"/>
 
 </launch>

@@ -11,7 +11,7 @@
 
 
 	<group ns="stereo">
-	    <include file="$(find minoru_camera)/launch/camera/minoru_camera.launch" />
+	    <include file="$(find camera)/launch/camera/minoru_camera.launch" />
 
 		<node name="calibrator" pkg="camera_calibration" type="cameracalibrator.py"
 			args="--size $(arg size) --square $(arg square) --approximate=$(arg approximate)"
