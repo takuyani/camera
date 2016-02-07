@@ -8,11 +8,13 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  sensor_msgs
+  cv_bridge
+  image_transport
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
-
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -129,6 +131,7 @@ include_directories(
 
 ## Declare a C++ executable
 # add_executable(camera_node src/camera_node.cpp)
+add_executable(contrast_augmenter src/contrast_augmenter.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -138,6 +141,9 @@ include_directories(
 # target_link_libraries(camera_node
 #   ${catkin_LIBRARIES}
 # )
+target_link_libraries(contrast_augmenter
+  ${catkin_LIBRARIES}
+)
 
 #############
 ## Install ##
