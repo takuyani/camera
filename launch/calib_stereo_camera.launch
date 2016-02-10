@@ -1,3 +1,4 @@
+<!-- stereo_camera_calib.launch -->
 <launch>
 
 	<!-- chessboard size as NxM, counting interior corners -->

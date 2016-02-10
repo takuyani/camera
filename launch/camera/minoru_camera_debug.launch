@@ -1,3 +1,4 @@
+<!-- minoru_camera_debug.launch -->
 <launch>
 
 	<arg name="isImageView"		default="true"/>

@@ -1,3 +1,4 @@
+<!-- visual_odometry.launch -->
 <launch>
 
 	<arg name="isRViz"			default="true"/>
