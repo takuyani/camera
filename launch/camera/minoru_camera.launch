@@ -11,6 +11,7 @@
 	
 	<!-- set camera parameter -->
 	<arg name="frame_rate"		value="5" />
+	<arg name="focus"			value="51" />
 
 	<node name="right" pkg="usb_cam" type="usb_cam_node" output="screen" >
 		<param name="video_device"		value="$(arg right_camera_dev)" />
