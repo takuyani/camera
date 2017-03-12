@@ -10,7 +10,7 @@
 	<arg name="image_height"	value="240" />
 	
 	<!-- set camera parameter -->
-	<arg name="frame_rate"		value="5" />
+	<arg name="frame_rate"		value="15" />
 	<arg name="focus"			value="51" />
 
 	<node name="right" pkg="usb_cam" type="usb_cam_node" output="screen" >
